@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Rescate de datos 💾</title>
+<style>
+  body{font-family:sans-serif;background:#F0FDFA;padding:20px;max-width:440px;margin:0 auto;}
+  h1{color:#134E4A;font-size:20px;margin-bottom:8px;}
+  p{color:#6B7280;font-size:14px;margin-bottom:20px;}
+  .card{background:white;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.08);margin-bottom:12px;}
+  .status{font-size:15px;font-weight:700;margin-bottom:12px;}
+  .ok{color:#0F766E;} .err{color:#DC2626;}
+  textarea{width:100%;height:180px;border-radius:10px;border:2px solid #CCFBF1;padding:10px;font-size:11px;font-family:monospace;resize:none;box-sizing:border-box;}
+  button{width:100%;padding:14px;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px;}
+  .btn-copy{background:linear-gradient(135deg,#2DD4BF,#67E8F9);color:white;}
+  .btn-dl{background:#E0F7FA;color:#0E7490;}
+  .count{font-size:13px;color:#0E7490;font-weight:700;margin-bottom:10px;}
+</style>
+</head>
+<body>
+<h1>💾 Rescate de datos</h1>
+<p>Esta página lee los datos guardados en este celular y te permite copiarlos o descargarlos.</p>
+
+<div class="card">
+  <div class="status" id="status">🔍 Buscando datos...</div>
+  <div class="count" id="count"></div>
+  <textarea id="data-box" placeholder="Los datos aparecerán acá..." readonly></textarea>
+  <br/><br/>
+  <button class="btn-copy" onclick="copyData()">📋 Copiar datos</button>
+  <button class="btn-dl"   onclick="downloadData()">⬇️ Descargar como archivo</button>
+</div>
+
+<div class="card">
+  <p style="margin:0;font-size:13px;color:#6B7280;">
+    <strong style="color:#134E4A">¿Qué hacer con esto?</strong><br/>
+    1. Tocá <em>Descargar</em> o <em>Copiar</em><br/>
+    2. Mandá el archivo o texto por WhatsApp/mail<br/>
+    3. Con esos datos podemos restaurar todo 🙌
+  </p>
+</div>
+
+<script>
+const KEYS = ["billetera_entries", "billetera_v2", "entries", "movimientos"];
+let found = null;
+let foundKey = null;
+
+// Buscar en todas las claves posibles
+for(const key of KEYS){
+  try{
+    const raw = localStorage.getItem(key);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed) && parsed.length > 0){
+        found = parsed;
+        foundKey = key;
+        break;
+      }
+    }
+  }catch(e){}
+}
+
+// También buscar cualquier clave que tenga arrays
+if(!found){
+  for(let i=0; i<localStorage.length; i++){
+    const key = localStorage.key(i);
+    try{
+      const raw = localStorage.getItem(key);
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed) && parsed.length > 0){
+        found = parsed;
+        foundKey = key;
+        break;
+      }
+    }catch(e){}
+  }
+}
+
+const statusEl = document.getElementById("status");
+const countEl  = document.getElementById("count");
+const boxEl    = document.getElementById("data-box");
+
+if(found){
+  statusEl.className = "status ok";
+  statusEl.textContent = "✅ ¡Datos encontrados!";
+  countEl.textContent = `📦 ${found.length} movimientos guardados (clave: "${foundKey}")`;
+  boxEl.value = JSON.stringify(found, null, 2);
+} else {
+  statusEl.className = "status err";
+  statusEl.textContent = "❌ No se encontraron datos en este dispositivo";
+  countEl.textContent = `Total de claves en localStorage: ${localStorage.length}`;
+  // Mostrar todo lo que hay por si acaso
+  const all = {};
+  for(let i=0; i<localStorage.length; i++){
+    const k = localStorage.key(i);
+    all[k] = localStorage.getItem(k);
+  }
+  boxEl.value = JSON.stringify(all, null, 2);
+}
+
+function copyData(){
+  boxEl.select();
+  document.execCommand("copy");
+  // fallback moderno
+  if(navigator.clipboard) navigator.clipboard.writeText(boxEl.value);
+  alert("✅ Datos copiados al portapapeles");
+}
+
+function downloadData(){
+  const blob = new Blob([boxEl.value], {type:"application/json"});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url;
+  a.download = "billetera_rescate_" + new Date().toISOString().slice(0,10) + ".json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
